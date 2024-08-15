@@ -1,6 +1,23 @@
 
+import ctrmap.CTRMapVResources;
 import ctrmap.Launc;
 import ctrmap.editor.CTRMapMenuActions;
+import ctrmap.editor.gui.editors.gen5.battle.encounters.VWildEditor;
+import ctrmap.editor.gui.editors.gen5.battle.trainer.VTrainerEditor;
+import ctrmap.editor.gui.editors.gen5.level.maps.VMapContainerEditor;
+import ctrmap.editor.gui.editors.gen5.level.maps.VZoneMatrixEditor;
+import ctrmap.editor.gui.editors.gen5.level.VLevelEditor;
+import ctrmap.editor.gui.editors.gen5.level.VZoneEditor;
+import ctrmap.editor.gui.editors.gen5.level.building.VPropEditor;
+import ctrmap.editor.gui.editors.gen5.level.camera.VCameraEditor;
+import ctrmap.editor.gui.editors.gen5.level.entities.VEventEditor;
+import ctrmap.editor.gui.editors.gen5.level.entities.VProxyEditor;
+import ctrmap.editor.gui.editors.gen5.level.entities.VNPCEditor;
+import ctrmap.editor.gui.editors.gen5.level.entities.VScriptingAssistant;
+import ctrmap.editor.gui.editors.gen5.level.entities.VTriggerEditor;
+import ctrmap.editor.gui.editors.gen5.level.entities.VWarpEditor;
+import ctrmap.editor.gui.editors.gen5.level.extra.VExtrasPanel;
+import ctrmap.editor.gui.editors.gen5.level.rail.VRailEditor;
 import ctrmap.editor.gui.editors.scenegraph.ScenegraphExplorer;
 import ctrmap.editor.gui.workspace.ROMExportDialog;
 import ctrmap.editor.system.juliet.CTRMapPluginInterface;
@@ -25,64 +42,38 @@ import xstandard.gui.DialogUtils;
 
 public class CTRMapPlugin implements ICTRMapPlugin {
 
-	public CTRMapPlugin() {}
+	public CTRMapPlugin() {
+		System.out.println("Loading Nightfire...");
+		CTRMapVResources.load();
+	}
 
 	public static void main(String[] args) {
-		JRTLDRCore.suppressDebugPluginByFileName("Sparkplug.jar");
+		JRTLDRCore.suppressDebugPluginByFileName("Nightfire.jar");
 		JRTLDRCore.addDebugSelfClassLoader(CTRMapPlugin.class.getProtectionDomain().getCodeSource());
 		Launc.main(null);
 	}
 
 	@Override
 	public void registPerspectives(CTRMapPluginInterface j) {
+		j.rmoRegistPerspective(VLevelEditor.class);
 	}
 
 	@Override
 	public void registEditors(CTRMapPluginInterface j) {
-//		j.rmoRegistToolbarEditors(...);
-//		j.rmoRegistTabbedEditors(...);
-	}
-
-	private void loadVFS(MemoryFile destDir, VFSFile src) {
-		for (VFSFile child : src.listFiles()) {
-			FSFile ov = child.getOvFile();
-			FSFile base = child.getBaseFile();
-			if (base == null || !base.exists()) {
-				destDir.linkChild(new ProxyFile(ov, ov.getPathRelativeTo(src.getVFS().getOvFSRoot()))); //use entire overlay file directly
-			} else {
-				//merge ovfs into basefs
-				if (!ov.exists()) {
-					destDir.linkChild(new ProxyFile(base, base.getPathRelativeTo(src.getVFS().getBaseFSRoot())));
-				} else {
-					if (base instanceof ArcFile) {
-						ArcFile arc = (ArcFile) base;
-						ArcInput[] inputs = src.getVFS().getArcInputs(ov, ov).toArray(new ArcInput[0]);
-						if (inputs.length > 0) {
-							MemoryFile newArc = new MemoryFile(arc.getName(), arc.getBytes());
-							ArcFile newArcFileObj = new ArcFile(newArc, src.getVFS().getArcFileAccessor());
-							src.getVFS().getArcFileAccessor().writeToArcFile(newArcFileObj, null, inputs);
-							arc = newArcFileObj;
-						}
-						destDir.linkChild(new ProxyFile(arc.getSource(), base.getPathRelativeTo(src.getVFS().getBaseFSRoot())));
-					} else if (base.isDirectory()) {
-						MemoryFile subDir = destDir.createChildDir(base.getName());
-						loadVFS(subDir, child);
-					} else {
-						destDir.linkChild(new ProxyFile(ov, ov.getPathRelativeTo(src.getVFS().getOvFSRoot())));
-					}
-				}
-			}
-		}
+		j.rmoRegistTabbedEditors(
+                    VLevelEditor.class,
+                    VTrainerEditor.class,
+                    VWildEditor.class,
+                    VZoneMatrixEditor.class,
+                    VMapContainerEditor.class
+		);
 	}
 
 	@Override
 	public void registUI(CTRMapPluginInterface j, GameInfo game) {
 		if (game.isGenV()) {
 			j.rmoAddAboutDialogCredits(
-				"Test"
-			);
-			j.rmoAddAboutDialogSpecialThanks(
-				"Test"
+				"PlatinumMaster - Nightfire"
 			);
 		}
 	}
