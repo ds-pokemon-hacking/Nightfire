@@ -4,22 +4,126 @@
  */
 package ctrmap.editor.gui.editors.gen5.level.maps;
 
+import ctrmap.editor.CTRMap;
 import ctrmap.editor.gui.editors.common.AbstractTabbedEditor;
+import ctrmap.editor.gui.editors.gen5.battle.encounters.VWildEditor;
+import ctrmap.editor.gui.editors.util.HeaderCellRenderer;
+import ctrmap.formats.pokemon.gen5.battle.trainer.WBTrainerData;
+import ctrmap.formats.pokemon.gen5.mapmatrix.VMapMatrix;
+import ctrmap.formats.pokemon.gen5.zone.VZoneTable;
+import ctrmap.missioncontrol_ntr.field.debug.VZoneDebugger;
+import ctrmap.missioncontrol_ntr.field.structs.VZone;
+import ctrmap.missioncontrol_ntr.fs.NARCRef;
+import ctrmap.missioncontrol_ntr.fs.NTRGameFS;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
+import java.io.IOException;
+import java.util.Vector;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableModel;
+import xstandard.fs.FSFile;
 /**
  *
  * @author L33TG
  */
-public class VZoneMatrixEditor extends javax.swing.JPanel implements AbstractTabbedEditor {
+public class VZoneMatrixEditor extends javax.swing.JPanel implements VZoneDebugger, AbstractTabbedEditor {
+    private CTRMap Instance;
+    private VMapMatrix matrix;
 
     /**
      * Creates new form VZoneMatrixEditor_
      */
-    public VZoneMatrixEditor() {
+    
+    public VZoneMatrixEditor(CTRMap Instance) {
         initComponents();
+        this.Instance = Instance;
+        this.jMatrixView.setCellSelectionEnabled(true);
+        this.jMatrixView.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                int row = jMatrixView.rowAtPoint(evt.getPoint());
+                int col = jMatrixView.columnAtPoint(evt.getPoint());
+                if (row >= 0 && col >= 0 && matrix.hasZones) {
+                    zoneSelector.getCB().setSelectedIndex(matrix.zoneIds.get(col, row));
+                }
+            }
+        });
+        
+        
+        VZoneTable zoneTable = new VZoneTable(FS().NARCGet(NARCRef.FIELD_ZONE_DATA, 0));
+        
+        for (int i = 0; i < zoneTable.getZoneCount(); ++i) {
+            zoneSelector.getCB().addItem("Route 209 Piano");
+        }
+        
+        this.jUseZoneHeaders.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                matrix.hasZones = e.getStateChange() == 1;
+                zoneSelector.setEnabled(matrix.hasZones);
+            }
+         });
     }
 
     public String getTabName() {
         return "Zone Matrix Editor";
+    }
+    
+    NTRGameFS FS() {
+        return Instance.getMissionControl(ctrmap.missioncontrol_ntr.VLaunchpad.class).fs;
+    }
+        
+    @Override
+    public void loadZone(VZone z) {
+        if (z != null) {
+            try {
+                LoadMatrix(z.header.matrixID);
+            } catch (IOException ex) {
+                Logger.getLogger(VWildEditor.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+    }
+    
+    
+    void LoadMatrix(int Index) throws IOException {
+        int Max = FS().NARCGetDataMax(NARCRef.FIELD_MAP_MATRIX);
+        if (0 <= Index && Index < Max) {
+            DefaultTableModel t = new DefaultTableModel() {
+                @Override
+                public boolean isCellEditable(int row, int column) {
+                    return column != 0;
+                }
+            };
+            
+            matrix = new VMapMatrix(FS().NARCGet(NARCRef.FIELD_MAP_MATRIX, Index));
+            if (matrix != null) {
+                int rowCount = matrix.getHeight();
+                int colCount = matrix.getWidth();
+                
+                String[] columnNames = new String[colCount + 1];
+                columnNames[0] = "Row/Col"; 
+                
+                for (int i = 0; i < colCount; i++) {
+                    columnNames[i] = "" + i;
+                }
+                
+                t.setColumnIdentifiers(columnNames);
+
+                for (int y = 0; y < rowCount; ++y) {
+                    Vector<Object> row = new Vector<>();
+                    row.add("" + y);
+                    row.addAll(matrix.chunkIds.list.get(y));
+                    t.addRow(row);
+                }
+            }
+            
+            jUseZoneHeaders.setEnabled(matrix.hasZones);
+            jMatrixView.setModel(t);
+            jMatrixView.revalidate();
+            jMatrixView.repaint();
+        }
     }
     
     /**
@@ -31,15 +135,20 @@ public class VZoneMatrixEditor extends javax.swing.JPanel implements AbstractTab
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        jSplitPane1 = new javax.swing.JSplitPane();
-        jScrollPane2 = new javax.swing.JScrollPane();
-        jTable2 = new javax.swing.JTable();
-        jPanel2 = new javax.swing.JPanel();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        jMatrixView = new javax.swing.JTable();
         jPanel1 = new javax.swing.JPanel();
+        jSpinner1 = new javax.swing.JSpinner();
+        jSpinner2 = new javax.swing.JSpinner();
+        jLabel2 = new javax.swing.JLabel();
+        jLabel3 = new javax.swing.JLabel();
+        jButton1 = new javax.swing.JButton();
+        jUseZoneHeaders = new javax.swing.JCheckBox();
+        jPanel2 = new javax.swing.JPanel();
         jLabel1 = new javax.swing.JLabel();
-        jComboBox1 = new javax.swing.JComboBox<>();
+        zoneSelector = new xstandard.gui.components.combobox.ComboBoxAndSpinner();
 
-        jTable2.setModel(new javax.swing.table.DefaultTableModel(
+        jMatrixView.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
                 {null, null, null, null},
                 {null, null, null, null},
@@ -50,20 +159,18 @@ public class VZoneMatrixEditor extends javax.swing.JPanel implements AbstractTab
                 "Title 1", "Title 2", "Title 3", "Title 4"
             }
         ));
-        jScrollPane2.setViewportView(jTable2);
+        jMatrixView.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        jScrollPane1.setViewportView(jMatrixView);
 
-        jSplitPane1.setLeftComponent(jScrollPane2);
+        jPanel1.setBorder(javax.swing.BorderFactory.createTitledBorder("Properties"));
 
-        jPanel1.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
+        jLabel2.setText("Width");
 
-        jLabel1.setText("Assigned Zone");
+        jLabel3.setText("Height");
 
-        jComboBox1.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
-        jComboBox1.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jComboBox1ActionPerformed(evt);
-            }
-        });
+        jButton1.setText("Commit");
+
+        jUseZoneHeaders.setText("Use Zone Headers");
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
@@ -71,38 +178,62 @@ public class VZoneMatrixEditor extends javax.swing.JPanel implements AbstractTab
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jLabel1)
-                .addGap(15, 15, 15)
-                .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 125, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(jLabel2)
+                        .addGap(22, 22, 22)
+                        .addComponent(jSpinner1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)
+                        .addComponent(jLabel3)
+                        .addGap(18, 18, 18)
+                        .addComponent(jSpinner2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jButton1)
+                    .addComponent(jUseZoneHeaders))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         jPanel1Layout.setVerticalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
+                .addComponent(jUseZoneHeaders)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jLabel1)
-                    .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addComponent(jSpinner1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel2)
+                    .addComponent(jSpinner2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel3))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jButton1)
+                .addContainerGap())
         );
+
+        jPanel2.setBorder(javax.swing.BorderFactory.createTitledBorder("Selected Entry"));
+
+        jLabel1.setText("Assigned Zone");
+
+        zoneSelector.setFont(new java.awt.Font("Droid Sans", 0, 12)); // NOI18N
+        zoneSelector.setMaximumRowCount(35);
 
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                .addContainerGap(632, Short.MAX_VALUE)
-                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap())
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jLabel1)
+                .addGap(18, 18, 18)
+                .addComponent(zoneSelector, javax.swing.GroupLayout.DEFAULT_SIZE, 227, Short.MAX_VALUE)
+                .addGap(16, 16, 16))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createSequentialGroup()
-                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(0, 604, Short.MAX_VALUE))
+                .addContainerGap()
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(zoneSelector, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 22, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
-
-        jSplitPane1.setRightComponent(jPanel2);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -110,30 +241,41 @@ public class VZoneMatrixEditor extends javax.swing.JPanel implements AbstractTab
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jSplitPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 891, Short.MAX_VALUE)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 788, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jSplitPane1)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 640, Short.MAX_VALUE)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(0, 0, Short.MAX_VALUE)))
                 .addContainerGap())
         );
     }// </editor-fold>//GEN-END:initComponents
 
-    private void jComboBox1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jComboBox1ActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_jComboBox1ActionPerformed
-
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JComboBox<String> jComboBox1;
+    private javax.swing.JButton jButton1;
     private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel2;
+    private javax.swing.JLabel jLabel3;
+    private javax.swing.JTable jMatrixView;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
-    private javax.swing.JScrollPane jScrollPane2;
-    private javax.swing.JSplitPane jSplitPane1;
-    private javax.swing.JTable jTable2;
+    private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JSpinner jSpinner1;
+    private javax.swing.JSpinner jSpinner2;
+    private javax.swing.JCheckBox jUseZoneHeaders;
+    private xstandard.gui.components.combobox.ComboBoxAndSpinner zoneSelector;
     // End of variables declaration//GEN-END:variables
 }
